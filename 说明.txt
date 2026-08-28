@@ -1,0 +1,5 @@
+D:\Pmcooper\eDrawings_Checker\EDrawingsChecker\bin\x64\Release\AxInterop.EModelView.dll
+D:\Pmcooper\eDrawings_Checker\EDrawingsChecker\bin\x64\Release\Interop.EModelView.dll
+D:\Pmcooper\eDrawings_Checker\EDrawingsChecker\bin\x64\Release\Interop.EModelViewMarkup.dll
+
+工具箱中需要引用： eDrawings 2024 Control
