@@ -21,6 +21,9 @@ Public Class eDrawingsChecker
         ' 构建“面板收纳”诊断 UI（不改动设计器生成的布局代码）
         InitDiagUI()
 
+        ' 构建文件列表窗口（运行时创建，不改动设计器生成的布局代码）
+        InitFileListUI()
+
     End Sub
 
     'Form overrides dispose to clean up the component list.
@@ -59,6 +62,7 @@ Public Class eDrawingsChecker
     Friend WithEvents Btn_Open_File As Button
     Friend WithEvents AxEModelViewControl1 As AxEModelView.AxEModelViewControl
     Friend WithEvents btn_measure As Button
+    Friend WithEvents btn_filelist As Button
 
     <System.Diagnostics.DebuggerStepThrough()> Private Sub InitializeComponent()
         Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(eDrawingsChecker))
@@ -71,6 +75,7 @@ Public Class eDrawingsChecker
         Me.btn_back = New System.Windows.Forms.Button()
         Me.btn_Home = New System.Windows.Forms.Button()
         Me.btn_measure = New System.Windows.Forms.Button()
+        Me.btn_filelist = New System.Windows.Forms.Button()
         Me.btn_file = New System.Windows.Forms.Button()
         Me.TableLayoutPanel3 = New System.Windows.Forms.TableLayoutPanel()
         Me.TableLayoutPanel2 = New System.Windows.Forms.TableLayoutPanel()
@@ -202,6 +207,19 @@ Public Class eDrawingsChecker
         Me.btn_measure.TabIndex = 30
         Me.btn_measure.Text = "Measure"
         '
+        'btn_filelist
+        '
+        Me.btn_filelist.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
+            Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.btn_filelist.Enabled = False
+        Me.btn_filelist.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.btn_filelist.Location = New System.Drawing.Point(371, 3)
+        Me.btn_filelist.Name = "btn_filelist"
+        Me.btn_filelist.Size = New System.Drawing.Size(86, 28)
+        Me.btn_filelist.TabIndex = 31
+        Me.btn_filelist.Text = "File List"
+        '
         'btn_file
         '
         Me.btn_file.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
@@ -278,11 +296,11 @@ Public Class eDrawingsChecker
         Me.TableLayoutPanel1.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 12.5!))
         Me.TableLayoutPanel1.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 12.5!))
         Me.TableLayoutPanel1.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 12.5!))
-        Me.TableLayoutPanel1.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20.0!))
         Me.TableLayoutPanel1.Controls.Add(Me.Btn_filelist_next, 2, 0)
         Me.TableLayoutPanel1.Controls.Add(Me.lblPosition, 0, 0)
         Me.TableLayoutPanel1.Controls.Add(Me.Btn_filelist_previous, 1, 0)
         Me.TableLayoutPanel1.Controls.Add(Me.btn_measure, 4, 0)
+        Me.TableLayoutPanel1.Controls.Add(Me.btn_filelist, 3, 0)
         Me.TableLayoutPanel1.Controls.Add(Me.Btn_Open_File, 5, 0)
         Me.TableLayoutPanel1.Location = New System.Drawing.Point(745, 3)
         Me.TableLayoutPanel1.Name = "TableLayoutPanel1"
@@ -500,6 +518,256 @@ Public Class eDrawingsChecker
 #End Region
 
 
+#Region " 文件列表窗口（运行时创建，不改动设计器代码） "
+
+    ' 文件列表窗口及其 ListView / 排除按钮
+    Private fileListForm As System.Windows.Forms.Form = Nothing
+    Private fileListLv As System.Windows.Forms.ListView = Nothing
+    Private btnExclude As System.Windows.Forms.Button = Nothing
+    ' 列表窗口最近一次因失去焦点而隐藏的时刻（用于区分“点按钮触发的失焦”与“点主窗口触发的失焦”）
+    Private _fileListLastHideTick As Integer = 0
+    ' 被排除条目的下标集合（fileList 中的索引）；被排除项既不显示在清单里，Previous/Next 也会跳过
+    Private excludedIndices As New HashSet(Of Integer)()
+
+    ''' <summary>构建文件列表窗口（列：序号/名称/类型/模型/工程图），运行时创建不改动设计器代码。</summary>
+    Private Sub InitFileListUI()
+        fileListForm = New System.Windows.Forms.Form()
+        fileListForm.Text = "File List"
+        fileListForm.Size = New System.Drawing.Size(460, 420)
+        fileListForm.StartPosition = FormStartPosition.Manual
+        ' 不允许缩放到过小，否则列宽/高度不足
+        fileListForm.MinimumSize = New System.Drawing.Size(400, 260)
+        fileListForm.FormBorderStyle = FormBorderStyle.Sizable
+        fileListForm.ShowInTaskbar = False
+        fileListForm.MinimizeBox = False
+        fileListForm.MaximizeBox = False
+
+        ' 底部按钮条：右侧“Exclude Selected”按钮
+        Dim bottomPanel As New System.Windows.Forms.Panel()
+        bottomPanel.Dock = DockStyle.Bottom
+        bottomPanel.Height = 34
+        bottomPanel.BackColor = SystemColors.Control
+        fileListForm.Controls.Add(bottomPanel)
+
+        btnExclude = New System.Windows.Forms.Button()
+        btnExclude.Text = "Exclude Selected"
+        btnExclude.Size = New System.Drawing.Size(120, 26)
+        btnExclude.Anchor = AnchorStyles.None
+        btnExclude.Font = New System.Drawing.Font("宋体", 9.0!)
+        AddHandler btnExclude.Click, AddressOf btnExclude_Click
+        bottomPanel.Controls.Add(btnExclude)
+        ' 居中布局：用 Layout 事件保证初次显示与缩放都居中
+        AddHandler bottomPanel.Layout, Sub() btnExclude.Location = New Point((bottomPanel.Width - btnExclude.Width) \ 2, (bottomPanel.Height - btnExclude.Height) \ 2)
+        ' 立即定位一次（Layout 在首次显示前可能未触发）
+        btnExclude.Location = New Point((bottomPanel.Width - btnExclude.Width) \ 2, (bottomPanel.Height - btnExclude.Height) \ 2)
+
+        ' ListView：序号 / 名称 / 类型 / 模型 / 工程图（模型、工程图用实心圆圈标识存在性）
+        fileListLv = New System.Windows.Forms.ListView()
+        fileListLv.Dock = DockStyle.Fill
+        fileListLv.View = View.Details
+        fileListLv.FullRowSelect = True
+        fileListLv.MultiSelect = True
+        fileListLv.GridLines = True
+        fileListLv.Font = New System.Drawing.Font("宋体", 9.0!)
+        ' 使用系统默认选中样式（不开启 OwnerDraw）
+        AddHandler fileListLv.MouseDoubleClick, AddressOf FileListLv_DoubleClick
+        ' 列：序号(中) / 名称(左) / 类型(中) / 模型(中) / 工程图(中)
+        fileListLv.Columns.Add("序号", 50, HorizontalAlignment.Center)
+        fileListLv.Columns.Add("名称", 200, HorizontalAlignment.Left)
+        fileListLv.Columns.Add("类型", 70, HorizontalAlignment.Center)
+        fileListLv.Columns.Add("模型", 50, HorizontalAlignment.Center)
+        fileListLv.Columns.Add("工程图", 60, HorizontalAlignment.Center)
+        fileListForm.Controls.Add(fileListLv)
+    End Sub
+
+    ''' <summary>把 fileList 填入 ListView（清空后重建）；被排除的条目不显示，序号连续重排。</summary>
+    Private Sub PopulateFileList()
+        If fileListLv Is Nothing Then Return
+        excludedIndices.Clear()
+        RebuildFileListItems()
+    End Sub
+
+    ''' <summary>按 excludedIndices 重建清单：被排除项不显示，序号从 1 连续编号（仅显示用）。</summary>
+    Private Sub RebuildFileListItems()
+        If fileListLv Is Nothing Then Return
+        fileListLv.BeginUpdate()
+        fileListLv.Items.Clear()
+        Dim seq As Integer = 1
+        For i As Integer = 0 To fileList.Count - 1
+            If excludedIndices.Contains(i) Then Continue For
+            fileListLv.Items.Add(BuildFileListItem(i, seq))
+            seq += 1
+        Next
+        fileListLv.EndUpdate()
+    End Sub
+
+    ''' <summary>为 fileList 中的下标构建一行 ListView 项：序号(显示序号)/名称/类型/模型存在/工程图存在。</summary>
+    Private Function BuildFileListItem(fileIdx As Integer, displaySeq As Integer) As ListViewItem
+        Dim modelPath As String = fileList(fileIdx)
+        Dim nameOnly As String = Path.GetFileNameWithoutExtension(modelPath)
+        Dim ext As String = Path.GetExtension(modelPath)
+        Dim typeStr As String = If(ext IsNot Nothing, ext.TrimStart("."c).ToUpper(), "")
+        Dim drawingPath As String = Check_Slddrw_File(modelPath)
+        Dim hasModel As Boolean = Not String.IsNullOrEmpty(modelPath)
+        Dim hasDrawing As Boolean = Not String.IsNullOrEmpty(drawingPath)
+        ' ● 表示存在，空字符串表示无
+        Dim modelMark As String = If(hasModel, "●", "")
+        Dim drawingMark As String = If(hasDrawing, "●", "")
+
+        ' 第 0 列文本由 ListViewItem 构造参数提供
+        Dim lvi As New ListViewItem(displaySeq.ToString())
+        lvi.UseItemStyleForSubItems = False
+        lvi.SubItems.Add(nameOnly)
+        lvi.SubItems.Add(typeStr)
+        Dim modelSub As New ListViewItem.ListViewSubItem(lvi, modelMark)
+        modelSub.ForeColor = If(hasModel, Color.Green, Color.Gray)
+        modelSub.Font = New System.Drawing.Font("宋体", 10.0!, FontStyle.Bold)
+        Dim drawSub As New ListViewItem.ListViewSubItem(lvi, drawingMark)
+        drawSub.ForeColor = If(hasDrawing, Color.Green, Color.Gray)
+        drawSub.Font = New System.Drawing.Font("宋体", 10.0!, FontStyle.Bold)
+        lvi.SubItems.Add(modelSub)
+        lvi.SubItems.Add(drawSub)
+        lvi.Tag = fileIdx   ' 保存 fileList 中的下标，供双击载入使用
+        Return lvi
+    End Function
+
+    ''' <summary>File List 按钮：显示/隐藏文件列表窗口。</summary>
+    Private Sub btn_filelist_Click(sender As Object, e As EventArgs) Handles btn_filelist.Click
+        If fileListForm Is Nothing Then InitFileListUI()
+        If fileListForm.Visible Then
+            fileListForm.Hide()
+        Else
+            ' 若刚刚因失去焦点而隐藏（点本按钮会先触发列表窗口 Deactivate），
+            ' 本次点击视为“隐藏”，不重新弹出，保证按钮点击为标准的开关切换
+            If Environment.TickCount - _fileListLastHideTick < 300 Then Return
+            PositionFileListForm()
+            fileListForm.Show(Me)
+            ' 选中并滚动到当前条目（按 Tag 匹配 fileList 中的 currentIndex）
+            SelectCurrentRow()
+        End If
+    End Sub
+
+    ''' <summary>选中并滚动到当前条目（按 Tag = currentIndex 匹配，排除后行顺序会变）。</summary>
+    Private Sub SelectCurrentRow()
+        If fileListLv Is Nothing OrElse fileListLv.Items.Count = 0 Then Return
+        fileListLv.SelectedItems.Clear()
+        For Each lvi As ListViewItem In fileListLv.Items
+            If CInt(lvi.Tag) = currentIndex Then
+                lvi.Selected = True
+                lvi.EnsureVisible()
+                Exit For
+            End If
+        Next
+    End Sub
+
+    ''' <summary>
+    ''' 把文件列表窗口定位到主窗口 File List 按钮下方；右不超过主窗口右边缘，下不超过主窗口下边缘。
+    ''' 高度也根据主窗口剩余空间自适应，避免超出下边缘。
+    ''' </summary>
+    Private Sub PositionFileListForm()
+        If fileListForm Is Nothing Then Return
+        Dim btnRect As Rectangle = btn_filelist.RectangleToScreen(btn_filelist.ClientRectangle)
+        Dim mainRect As Rectangle = Me.RectangleToScreen(Me.ClientRectangle)
+
+        Dim x As Integer = btnRect.Left
+        Dim y As Integer = btnRect.Bottom + 2
+
+        ' 右不超过主窗口右边缘
+        Dim maxRight As Integer = mainRect.Right - 4
+        If x + fileListForm.Width > maxRight Then x = maxRight - fileListForm.Width
+        If x < mainRect.Left Then x = mainRect.Left
+
+        ' 下不超过主窗口下边缘：若默认高度超出，则压缩高度到下边缘
+        Dim maxBottom As Integer = mainRect.Bottom - 4
+        Dim w As Integer = fileListForm.Width
+        Dim h As Integer = fileListForm.Height
+        If y + h > maxBottom Then
+            h = maxBottom - y
+            If h < fileListForm.MinimumSize.Height Then
+                h = fileListForm.MinimumSize.Height
+                ' 高度回弹到最小后，y 上移使下边缘不越界
+                y = maxBottom - h
+            End If
+        End If
+        If y < mainRect.Top Then y = mainRect.Top
+
+        fileListForm.Location = New System.Drawing.Point(x, y)
+        fileListForm.Size = New System.Drawing.Size(w, h)
+    End Sub
+
+    ''' <summary>列表窗口失去焦点（点击主窗口等）时自动隐藏。</summary>
+    Private Sub FileListForm_Deactivate(sender As Object, e As EventArgs)
+        If fileListForm IsNot Nothing AndAlso fileListForm.Visible Then
+            fileListForm.Hide()
+            _fileListLastHideTick = Environment.TickCount
+        End If
+    End Sub
+
+    ''' <summary>点 X 仅隐藏而非销毁，便于反复打开。</summary>
+    Private Sub FileListForm_FormClosing(sender As Object, e As FormClosingEventArgs)
+        If e.CloseReason = CloseReason.UserClosing Then
+            e.Cancel = True
+            fileListForm.Hide()
+            _fileListLastHideTick = Environment.TickCount
+        End If
+    End Sub
+
+    ''' <summary>双击条目：载入对应的模型和工程图，并隐藏列表窗口。</summary>
+    Private Sub FileListLv_DoubleClick(sender As Object, e As MouseEventArgs)
+        If fileListLv Is Nothing Then Return
+        Dim hi As ListViewHitTestInfo = fileListLv.HitTest(e.Location)
+        If hi Is Nothing OrElse hi.Item Is Nothing Then Return
+        Dim idx As Integer = CInt(hi.Item.Tag)
+        If idx < 0 OrElse idx >= fileList.Count Then Return
+        BeginLoad(idx)
+        UpdatePositionLabel()
+        fileListForm.Hide()
+    End Sub
+
+    ''' <summary>“排除”按钮：把当前选中的条目从清单移除（不显示），Previous/Next 也会跳过。</summary>
+    Private Sub btnExclude_Click(sender As Object, e As EventArgs)
+        If fileListLv Is Nothing OrElse fileListLv.SelectedItems.Count = 0 Then Return
+        ' 收集被排除条目的 fileList 下标（按 Tag）
+        For Each lvi As ListViewItem In fileListLv.SelectedItems
+            excludedIndices.Add(CInt(lvi.Tag))
+        Next
+        ' 重建清单（被排除项不再显示，序号连续重排）
+        RebuildFileListItems()
+        UpdatePositionLabel()
+        ' 排除后清空选中状态：避免某行处于“已选中”时，用户首次点击被系统当作双击序列的第二次点击而误触发载入
+        fileListLv.SelectedItems.Clear()
+    End Sub
+
+    ''' <summary>从 fromIndex 出发按 direction(+1/-1) 找下一个未被排除的下标；全部被排除返回 -1。</summary>
+    Private Function NextNonExcludedIndex(fromIndex As Integer, direction As Integer) As Integer
+        If fileList.Count = 0 Then Return -1
+        Dim n As Integer = fileList.Count
+        For k As Integer = 1 To n
+            Dim cand As Integer = ((fromIndex + direction * k) Mod n + n) Mod n
+            If Not excludedIndices.Contains(cand) Then Return cand
+        Next
+        Return -1
+    End Function
+
+    ''' <summary>fileList 下标在“未排除清单”中的位置（0 基）；被排除返回 -1。</summary>
+    Private Function ActivePositionOf(fileIdx As Integer) As Integer
+        If fileIdx < 0 OrElse fileIdx >= fileList.Count Then Return -1
+        If excludedIndices.Contains(fileIdx) Then Return -1
+        Dim pos As Integer = 0
+        For i As Integer = 0 To fileIdx - 1
+            If Not excludedIndices.Contains(i) Then pos += 1
+        Next
+        Return pos
+    End Function
+
+    ''' <summary>未排除条目总数。</summary>
+    Private Function ActiveCount() As Integer
+        Return fileList.Count - excludedIndices.Count
+    End Function
+
+#End Region
+
+
     '''Change to a standard Right view.
     Private Sub btn_right_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btn_right.Click
         AxEModelViewControl2.ViewOrientation = EModelView.EMVViewOrientation.eMVOrientationRight
@@ -545,6 +813,7 @@ Public Class eDrawingsChecker
             Me.Btn_filelist_previous.Enabled = True
             Me.Btn_filelist_next.Enabled = True
             Me.Btn_Open_File.Enabled = True
+            Me.btn_filelist.Enabled = True
             ProcessSelectedFile(sFilename)
         End If
     End Sub
@@ -639,6 +908,7 @@ Public Class eDrawingsChecker
 
             BeginLoad(currentIndex)
             UpdatePositionLabel()
+            PopulateFileList()
 
         Catch ex As Exception
             MessageBox.Show($"操作失败: {ex.Message}")
@@ -802,7 +1072,14 @@ Public Class eDrawingsChecker
 
     Private Sub UpdatePositionLabel(Optional ByVal idx As Integer = -1)
         Dim show As Integer = If(idx >= 0, idx, currentIndex)
-        lblPosition.Text = $"{show + 1}/{fileList.Count}"
+        ' 显示值基于“未排除清单”：位置=在未排除清单中的序号，总数=未排除条目数
+        Dim pos As Integer = ActivePositionOf(show) + 1
+        Dim total As Integer = ActiveCount()
+        If pos <= 0 Then 
+		lblPosition.Text = $"--/{total}"
+	Else
+        	lblPosition.Text = $"{pos}/{total}"
+	End If
 
         ' 在标题栏中显示文件名
         If fileList.Count > 0 AndAlso show >= 0 AndAlso show < fileList.Count Then
@@ -820,7 +1097,10 @@ Public Class eDrawingsChecker
         If fileList.Count = 0 Then Return
         ' 正在加载时，相对“上次目标”继续推进；空闲时相对“当前已显示”推进
         Dim base As Integer = If(_isLoading, _targetIndex, currentIndex)
-        _targetIndex = WrapIndex(base + delta)
+        ' 跳过被 File List 排除的下标；若全部被排除则不跳转
+        Dim nxt As Integer = NextNonExcludedIndex(base, If(delta > 0, 1, -1))
+        If nxt < 0 Then Return
+        _targetIndex = nxt
         UpdatePositionLabel(_targetIndex)   ' 立即反馈“将要跳到哪”
         If Not _isLoading Then
             BeginLoad(_targetIndex)
