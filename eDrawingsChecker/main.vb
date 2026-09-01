@@ -536,11 +536,11 @@ Public Class eDrawingsChecker
     Private Sub InitFileListUI()
         fileListForm = New System.Windows.Forms.Form()
         fileListForm.Text = "File List"
-        ' 客户区宽度 = 列宽合计(430) + 垂直滚动条(17) + 余量(1)，刚好显示所有列且无水平滚动条
-        fileListForm.ClientSize = New System.Drawing.Size(448, 386)
+        ' 客户区宽度 = 列宽合计(430) + 垂直滚动条(17) ，刚好显示所有列且无水平滚动条
+        fileListForm.ClientSize = New System.Drawing.Size(447, 380)
         fileListForm.StartPosition = FormStartPosition.Manual
-        ' 不允许缩放到过小（外框最小宽度对应客户区 448）
-        fileListForm.MinimumSize = New System.Drawing.Size(464, 260)
+        ' 不允许缩放到过小（外框最小宽度对应客户区 447）
+        fileListForm.MinimumSize = New System.Drawing.Size(463, 260)
         fileListForm.FormBorderStyle = FormBorderStyle.Sizable
         fileListForm.ShowInTaskbar = False
         fileListForm.MinimizeBox = False
@@ -558,11 +558,12 @@ Public Class eDrawingsChecker
         ' 使用系统默认选中样式（不开启 OwnerDraw）
         AddHandler fileListLv.MouseDoubleClick, AddressOf FileListLv_DoubleClick
         ' 列：序号(中) / 名称(左) / 类型(中) / 模型(中) / 工程图(中)
+        fileListLv.Columns.Add("", 0, HorizontalAlignment.Left)
         fileListLv.Columns.Add("序号", 50, HorizontalAlignment.Center)
         fileListLv.Columns.Add("名称", 200, HorizontalAlignment.Left)
         fileListLv.Columns.Add("类型", 70, HorizontalAlignment.Center)
-        fileListLv.Columns.Add("模型", 50, HorizontalAlignment.Center)
-        fileListLv.Columns.Add("工程图", 60, HorizontalAlignment.Center)
+        fileListLv.Columns.Add("模型", 55, HorizontalAlignment.Center)
+        fileListLv.Columns.Add("工程图", 55, HorizontalAlignment.Center)
         ' 先加入 ListView（Fill），再加入底部按钮条（Bottom），保证按钮条始终在 ListView 上方可见
         fileListForm.Controls.Add(fileListLv)
 
@@ -626,6 +627,7 @@ Public Class eDrawingsChecker
         ' 第 0 列文本由 ListViewItem 构造参数提供
         Dim lvi As New ListViewItem(displaySeq.ToString())
         lvi.UseItemStyleForSubItems = False
+        lvi.SubItems.Add(displaySeq.ToString())
         lvi.SubItems.Add(nameOnly)
         lvi.SubItems.Add(typeStr)
         Dim modelSub As New ListViewItem.ListViewSubItem(lvi, modelMark)
