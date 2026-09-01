@@ -198,30 +198,32 @@ Public Class eDrawingsChecker
         Me.btn_measure.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
             Or System.Windows.Forms.AnchorStyles.Left) _
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.btn_measure.BackColor = System.Drawing.Color.FromArgb(CType(CType(192, Byte), Integer), CType(CType(255, Byte), Integer), CType(CType(192, Byte), Integer))
         Me.btn_measure.Enabled = False
-        Me.btn_measure.BackColor = System.Drawing.Color.FromArgb(192, 255, 192)
         Me.btn_measure.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.btn_measure.ForeColor = System.Drawing.Color.FromArgb(0, 96, 0)
+        Me.btn_measure.ForeColor = System.Drawing.Color.FromArgb(CType(CType(0, Byte), Integer), CType(CType(96, Byte), Integer), CType(CType(0, Byte), Integer))
         Me.btn_measure.Location = New System.Drawing.Point(463, 3)
         Me.btn_measure.Name = "btn_measure"
         Me.btn_measure.Size = New System.Drawing.Size(86, 28)
         Me.btn_measure.TabIndex = 30
         Me.btn_measure.Text = "Measure"
+        Me.btn_measure.UseVisualStyleBackColor = False
         '
         'btn_filelist
         '
         Me.btn_filelist.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
             Or System.Windows.Forms.AnchorStyles.Left) _
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.btn_filelist.BackColor = System.Drawing.Color.FromArgb(CType(CType(255, Byte), Integer), CType(CType(224, Byte), Integer), CType(CType(192, Byte), Integer))
         Me.btn_filelist.Enabled = False
-        Me.btn_filelist.BackColor = System.Drawing.Color.FromArgb(255, 224, 192)
         Me.btn_filelist.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.btn_filelist.ForeColor = System.Drawing.Color.FromArgb(192, 0, 0)
+        Me.btn_filelist.ForeColor = System.Drawing.Color.FromArgb(CType(CType(192, Byte), Integer), CType(CType(0, Byte), Integer), CType(CType(0, Byte), Integer))
         Me.btn_filelist.Location = New System.Drawing.Point(371, 3)
         Me.btn_filelist.Name = "btn_filelist"
         Me.btn_filelist.Size = New System.Drawing.Size(86, 28)
         Me.btn_filelist.TabIndex = 31
         Me.btn_filelist.Text = "File List"
+        Me.btn_filelist.UseVisualStyleBackColor = False
         '
         'btn_file
         '
@@ -369,7 +371,7 @@ Public Class eDrawingsChecker
         Me.SplitContainer1.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
             Or System.Windows.Forms.AnchorStyles.Left) _
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.SplitContainer1.BackColor = System.Drawing.Color.White
+        Me.SplitContainer1.BackColor = System.Drawing.Color.Transparent
         Me.SplitContainer1.Location = New System.Drawing.Point(0, 0)
         Me.SplitContainer1.Margin = New System.Windows.Forms.Padding(0)
         Me.SplitContainer1.Name = "SplitContainer1"
@@ -385,6 +387,7 @@ Public Class eDrawingsChecker
         Me.SplitContainer1.Panel2MinSize = 50
         Me.SplitContainer1.Size = New System.Drawing.Size(1484, 960)
         Me.SplitContainer1.SplitterDistance = 740
+        Me.SplitContainer1.SplitterWidth = 2
         Me.SplitContainer1.TabIndex = 60
         '
         'AxEModelViewControl2
@@ -412,7 +415,7 @@ Public Class eDrawingsChecker
         Me.AxEModelViewControl1.Margin = New System.Windows.Forms.Padding(0)
         Me.AxEModelViewControl1.Name = "AxEModelViewControl1"
         Me.AxEModelViewControl1.OcxState = CType(resources.GetObject("AxEModelViewControl1.OcxState"), System.Windows.Forms.AxHost.State)
-        Me.AxEModelViewControl1.Size = New System.Drawing.Size(742, 961)
+        Me.AxEModelViewControl1.Size = New System.Drawing.Size(744, 962)
         Me.AxEModelViewControl1.TabIndex = 57
         '
         'eDrawingsChecker
@@ -1087,11 +1090,11 @@ Public Class eDrawingsChecker
         ' 显示值基于“未排除清单”：位置=在未排除清单中的序号，总数=未排除条目数
         Dim pos As Integer = ActivePositionOf(show) + 1
         Dim total As Integer = ActiveCount()
-        If pos <= 0 Then 
-		lblPosition.Text = $"--/{total}"
-	Else
-        	lblPosition.Text = $"{pos}/{total}"
-	End If
+        If pos <= 0 Then
+            lblPosition.Text = $"--/{total}"
+        Else
+            lblPosition.Text = $"{pos}/{total}"
+        End If
 
         ' 在标题栏中显示文件名
         If fileList.Count > 0 AndAlso show >= 0 AndAlso show < fileList.Count Then
@@ -1522,4 +1525,3 @@ Public Class eDrawingsChecker
     End Sub
 
 End Class
-
