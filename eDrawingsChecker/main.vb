@@ -199,8 +199,9 @@ Public Class eDrawingsChecker
             Or System.Windows.Forms.AnchorStyles.Left) _
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.btn_measure.Enabled = False
+        Me.btn_measure.BackColor = System.Drawing.Color.FromArgb(192, 255, 192)
         Me.btn_measure.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.btn_measure.ForeColor = System.Drawing.Color.LightSeaGreen
+        Me.btn_measure.ForeColor = System.Drawing.Color.FromArgb(0, 96, 0)
         Me.btn_measure.Location = New System.Drawing.Point(463, 3)
         Me.btn_measure.Name = "btn_measure"
         Me.btn_measure.Size = New System.Drawing.Size(86, 28)
@@ -213,7 +214,9 @@ Public Class eDrawingsChecker
             Or System.Windows.Forms.AnchorStyles.Left) _
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.btn_filelist.Enabled = False
-        Me.btn_filelist.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.btn_filelist.BackColor = System.Drawing.Color.FromArgb(255, 224, 192)
+        Me.btn_filelist.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.btn_filelist.ForeColor = System.Drawing.Color.FromArgb(192, 0, 0)
         Me.btn_filelist.Location = New System.Drawing.Point(371, 3)
         Me.btn_filelist.Name = "btn_filelist"
         Me.btn_filelist.Size = New System.Drawing.Size(86, 28)
@@ -533,16 +536,37 @@ Public Class eDrawingsChecker
     Private Sub InitFileListUI()
         fileListForm = New System.Windows.Forms.Form()
         fileListForm.Text = "File List"
-        fileListForm.Size = New System.Drawing.Size(460, 420)
+        ' 客户区宽度 = 列宽合计(430) + 垂直滚动条(17) + 余量(1)，刚好显示所有列且无水平滚动条
+        fileListForm.ClientSize = New System.Drawing.Size(448, 386)
         fileListForm.StartPosition = FormStartPosition.Manual
-        ' 不允许缩放到过小，否则列宽/高度不足
-        fileListForm.MinimumSize = New System.Drawing.Size(400, 260)
+        ' 不允许缩放到过小（外框最小宽度对应客户区 448）
+        fileListForm.MinimumSize = New System.Drawing.Size(464, 260)
         fileListForm.FormBorderStyle = FormBorderStyle.Sizable
         fileListForm.ShowInTaskbar = False
         fileListForm.MinimizeBox = False
         fileListForm.MaximizeBox = False
 
-        ' 底部按钮条：右侧“Exclude Selected”按钮
+        ' ListView：序号 / 名称 / 类型 / 模型 / 工程图（模型、工程图用实心圆圈标识存在性）
+        fileListLv = New System.Windows.Forms.ListView()
+        fileListLv.Dock = DockStyle.Fill
+        fileListLv.BorderStyle = BorderStyle.None
+        fileListLv.View = View.Details
+        fileListLv.FullRowSelect = True
+        fileListLv.MultiSelect = True
+        fileListLv.GridLines = True
+        fileListLv.Font = New System.Drawing.Font("宋体", 9.0!)
+        ' 使用系统默认选中样式（不开启 OwnerDraw）
+        AddHandler fileListLv.MouseDoubleClick, AddressOf FileListLv_DoubleClick
+        ' 列：序号(中) / 名称(左) / 类型(中) / 模型(中) / 工程图(中)
+        fileListLv.Columns.Add("序号", 50, HorizontalAlignment.Center)
+        fileListLv.Columns.Add("名称", 200, HorizontalAlignment.Left)
+        fileListLv.Columns.Add("类型", 70, HorizontalAlignment.Center)
+        fileListLv.Columns.Add("模型", 50, HorizontalAlignment.Center)
+        fileListLv.Columns.Add("工程图", 60, HorizontalAlignment.Center)
+        ' 先加入 ListView（Fill），再加入底部按钮条（Bottom），保证按钮条始终在 ListView 上方可见
+        fileListForm.Controls.Add(fileListLv)
+
+        ' 底部按钮条：中间“Exclude Selected”按钮
         Dim bottomPanel As New System.Windows.Forms.Panel()
         bottomPanel.Dock = DockStyle.Bottom
         bottomPanel.Height = 34
@@ -561,23 +585,8 @@ Public Class eDrawingsChecker
         ' 立即定位一次（Layout 在首次显示前可能未触发）
         btnExclude.Location = New Point((bottomPanel.Width - btnExclude.Width) \ 2, (bottomPanel.Height - btnExclude.Height) \ 2)
 
-        ' ListView：序号 / 名称 / 类型 / 模型 / 工程图（模型、工程图用实心圆圈标识存在性）
-        fileListLv = New System.Windows.Forms.ListView()
-        fileListLv.Dock = DockStyle.Fill
-        fileListLv.View = View.Details
-        fileListLv.FullRowSelect = True
-        fileListLv.MultiSelect = True
-        fileListLv.GridLines = True
-        fileListLv.Font = New System.Drawing.Font("宋体", 9.0!)
-        ' 使用系统默认选中样式（不开启 OwnerDraw）
-        AddHandler fileListLv.MouseDoubleClick, AddressOf FileListLv_DoubleClick
-        ' 列：序号(中) / 名称(左) / 类型(中) / 模型(中) / 工程图(中)
-        fileListLv.Columns.Add("序号", 50, HorizontalAlignment.Center)
-        fileListLv.Columns.Add("名称", 200, HorizontalAlignment.Left)
-        fileListLv.Columns.Add("类型", 70, HorizontalAlignment.Center)
-        fileListLv.Columns.Add("模型", 50, HorizontalAlignment.Center)
-        fileListLv.Columns.Add("工程图", 60, HorizontalAlignment.Center)
-        fileListForm.Controls.Add(fileListLv)
+        ' 重建窗口后重新填充内容
+        PopulateFileList()
     End Sub
 
     ''' <summary>把 fileList 填入 ListView（清空后重建）；被排除的条目不显示，序号连续重排。</summary>
@@ -633,7 +642,8 @@ Public Class eDrawingsChecker
 
     ''' <summary>File List 按钮：显示/隐藏文件列表窗口。</summary>
     Private Sub btn_filelist_Click(sender As Object, e As EventArgs) Handles btn_filelist.Click
-        If fileListForm Is Nothing Then InitFileListUI()
+        ' 窗体可能已被释放（例如被主窗口 Dispose 带动），此时重建
+        If fileListForm Is Nothing OrElse fileListForm.IsDisposed Then InitFileListUI()
         If fileListForm.Visible Then
             fileListForm.Hide()
         Else
